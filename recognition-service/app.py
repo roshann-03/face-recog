@@ -10,24 +10,34 @@ import jwt
 import datetime
 from functools import wraps
 from bson import ObjectId
-
+from dotenv import load_dotenv 
+import os
 from datetime import datetime, timezone, timedelta
+
+load_dotenv()
 
 today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
 today_end = today_start + timedelta(days=1)
 
 
 app = Flask(__name__)
-CORS(app)
+origins_string = os.getenv("ALLOWED_ORIGINS", "")
+
+# 2. Convert the string into a list (array)
+# This creates: ["http://localhost:3000", "http://127.0.0.1:5173", ...]
+allowed_origins = [origin.strip() for origin in origins_string.split(",") if origin.strip()]
+
+# 3. Pass the list to CORS
+CORS(app, resources={r"/*": {"origins": allowed_origins}})
 
 # MongoDB setup
-MONGO_URI = "mongodb://127.0.0.1:27017"
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://127.0.0.1:27017")
 client = MongoClient(MONGO_URI)
 db = client["face-recog"]
 students_collection = db["users"]
 attendance_collection = db["attendance"]
 
-JWT_SECRET_KEY = "5a1d13c682e3208a793a4daa77a7e7646dab406d3aa4a9aa2cf5f8e2b7d36321"
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 
 # Auth decorator
 def token_required(f):
