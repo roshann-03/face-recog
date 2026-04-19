@@ -1,22 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { API_TWO } from "../api/api";
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL_ONE;
-
-// Helper function for authenticated requests
-const fetchWithAuth = async (url, options = {}) => {
-  const token = localStorage.getItem("token");
-  return fetch(url, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-      ...options.headers,
-    },
-  });
-};
+import { API_ONE } from "../api/api";
 
 export default function EditStudent() {
   const { id } = useParams();
@@ -37,6 +22,7 @@ export default function EditStudent() {
   const [preview, setPreview] = useState(null);
   const [existingFaceEncoding, setExistingFaceEncoding] = useState(null);
   const [message, setMessage] = useState("");
+  const [isError, setIsError] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -45,9 +31,7 @@ export default function EditStudent() {
 
   const loadStudent = async (studentId) => {
     try {
-      const res = await fetchWithAuth(`${API_BASE_URL}/students/${studentId}`);
-      const data = await res.json();
-
+      const { data } = await API_ONE.get(`/students/${studentId}`);
       setForm({
         name: data.name || "",
         email: data.email || "",
@@ -65,11 +49,11 @@ export default function EditStudent() {
         if (typeof data.faceEncoding === "string")
           setPreview(data.faceEncoding);
       }
-
-      window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
-      //.error(err);
+      console.error("Error loading student:", err);
       setMessage("Failed to load student data");
+      setIsError(true);
+      setTimeout(() => setMessage(""), 4000);
     }
   };
 
@@ -97,145 +81,246 @@ export default function EditStudent() {
       else if (existingFaceEncoding)
         payload.faceEncoding = existingFaceEncoding;
 
-      const res = await fetchWithAuth(`${import.meta.env.VITE_API_BASE_URL_TWO}/students/${id}`, {
-        method: "PUT",
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Error updating student");
+      const { data } = await API_ONE.put(`/students/${id}`, payload);
 
       setMessage(data.message || "Student updated successfully");
+      setIsError(false);
       setTimeout(() => navigate("/admin/students"), 2000);
     } catch (err) {
-      setMessage(err.message);
+      const errorMsg =
+        err.response?.data?.error || err.message || "Error updating student";
+      setMessage(errorMsg);
+      setIsError(true);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-10">
-      <motion.h1
-        className="text-4xl font-bold text-indigo-700"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        Edit Student
-      </motion.h1>
-
-      {message && (
-        <motion.p
-          className="mt-4 text-center font-medium"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.3 }}
-          style={{
-            color: message.toLowerCase().includes("error")
-              ? "#dc2626"
-              : "#16a34a",
-          }}
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 px-4 py-8">
+      <div className="max-w-4xl mx-auto">
+        <motion.header
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-10 text-center"
         >
-          {message}
-        </motion.p>
-      )}
+          <h1 className="text-5xl font-black gradient-text mb-2">
+            ✏️ Edit Student
+          </h1>
+          <p className="text-slate-400">
+            Update student information and profile details.
+          </p>
+        </motion.header>
 
-      <motion.form
-        onSubmit={handleSubmit}
-        className="bg-white shadow-lg rounded-xl p-6 grid grid-cols-1 md:grid-cols-12 gap-4"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5 }}
-      >
-        {/* Form Fields */}
-        {[
-          { name: "name", placeholder: "Name", type: "text", span: 6 },
-          { name: "email", placeholder: "Email", type: "email", span: 6 },
-          {
-            name: "fatherName",
-            placeholder: "Father's Name",
-            type: "text",
-            span: 6,
-          },
-          {
-            name: "enrollmentNumber",
-            placeholder: "Enrollment Number",
-            type: "text",
-            span: 4,
-          },
-          {
-            name: "semester",
-            placeholder: "Semester",
-            type: "number",
-            span: 2,
-          },
-          {
-            name: "admissionYear",
-            placeholder: "Admission Year",
-            type: "number",
-            span: 2,
-          },
-          { name: "course", placeholder: "Course", type: "text", span: 4 },
-          {
-            name: "phoneNumber",
-            placeholder: "Phone Number",
-            type: "text",
-            span: 4,
-          },
-        ].map((field) => (
-          <div key={field.name} className={`md:col-span-${field.span}`}>
-            <input
-              type={field.type}
-              name={field.name}
-              value={form[field.name]}
-              onChange={handleChange}
-              placeholder={field.placeholder}
-              className="w-full p-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              required
-            />
-          </div>
-        ))}
-
-        {/* Photo Upload */}
-        <div className="md:col-span-4 flex flex-col gap-2">
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handlePhotoChange}
-            className="p-2 border rounded-md"
-          />
-          {preview && (
-            <img
-              src={preview}
-              alt="Preview"
-              className="w-32 h-32 object-cover border rounded-md mt-1"
-            />
-          )}
-        </div>
-
-        {/* Submit / Cancel Buttons */}
-        <div className="md:col-span-12 mt-2 flex gap-4">
-          <button
-            type="submit"
-            disabled={loading}
-            className={`flex-1 py-3 px-6 rounded-md font-semibold transition-colors ${
-              loading
-                ? "bg-gray-400 text-gray-100 cursor-not-allowed"
-                : "bg-indigo-600 text-white hover:bg-indigo-700"
+        {message && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={`rounded-2xl p-4 mb-8 text-center font-semibold ${
+              isError
+                ? "bg-red-500/10 text-red-300 border border-red-500/20"
+                : "bg-emerald-500/10 text-emerald-300 border border-emerald-500/20"
             }`}
           >
-            {loading ? "Updating..." : "Update Student"}
-          </button>
-          <button
-            type="button"
-            onClick={() => navigate("/admin/students")}
-            className="flex-1 py-3 px-6 rounded-md font-semibold bg-gray-500 text-white hover:bg-gray-600 transition"
-          >
-            Cancel
-          </button>
-        </div>
-      </motion.form>
+            {message}
+          </motion.div>
+        )}
+
+        <motion.form
+          onSubmit={handleSubmit}
+          className="glass border border-cyan-500/20 rounded-3xl p-8 space-y-6"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-slate-300 uppercase tracking-wider">
+                Full Name
+              </label>
+              <input
+                type="text"
+                name="name"
+                value={form.name}
+                onChange={handleChange}
+                placeholder="Enter full name"
+                className="w-full rounded-2xl border border-slate-700/80 bg-slate-950/70 px-4 py-3 text-slate-200 placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none transition"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-slate-300 uppercase tracking-wider">
+                Email Address
+              </label>
+              <input
+                type="email"
+                name="email"
+                value={form.email}
+                onChange={handleChange}
+                placeholder="Enter email address"
+                className="w-full rounded-2xl border border-slate-700/80 bg-slate-950/70 px-4 py-3 text-slate-200 placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none transition"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-slate-300 uppercase tracking-wider">
+                Father's Name
+              </label>
+              <input
+                type="text"
+                name="fatherName"
+                value={form.fatherName}
+                onChange={handleChange}
+                placeholder="Enter father's name"
+                className="w-full rounded-2xl border border-slate-700/80 bg-slate-950/70 px-4 py-3 text-slate-200 placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none transition"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-slate-300 uppercase tracking-wider">
+                Enrollment Number
+              </label>
+              <input
+                type="text"
+                name="enrollmentNumber"
+                value={form.enrollmentNumber}
+                onChange={handleChange}
+                placeholder="Enter enrollment number"
+                className="w-full rounded-2xl border border-slate-700/80 bg-slate-950/70 px-4 py-3 text-slate-200 placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none transition"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-slate-300 uppercase tracking-wider">
+                Course
+              </label>
+              <input
+                type="text"
+                name="course"
+                value={form.course}
+                onChange={handleChange}
+                placeholder="Enter course name"
+                className="w-full rounded-2xl border border-slate-700/80 bg-slate-950/70 px-4 py-3 text-slate-200 placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none transition"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-slate-300 uppercase tracking-wider">
+                Semester
+              </label>
+              <input
+                type="number"
+                name="semester"
+                value={form.semester}
+                onChange={handleChange}
+                placeholder="Enter semester"
+                className="w-full rounded-2xl border border-slate-700/80 bg-slate-950/70 px-4 py-3 text-slate-200 placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none transition"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-slate-300 uppercase tracking-wider">
+                Admission Year
+              </label>
+              <input
+                type="number"
+                name="admissionYear"
+                value={form.admissionYear}
+                onChange={handleChange}
+                placeholder="Enter admission year"
+                className="w-full rounded-2xl border border-slate-700/80 bg-slate-950/70 px-4 py-3 text-slate-200 placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none transition"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-slate-300 uppercase tracking-wider">
+                Phone Number
+              </label>
+              <input
+                type="text"
+                name="phoneNumber"
+                value={form.phoneNumber}
+                onChange={handleChange}
+                placeholder="Enter phone number"
+                className="w-full rounded-2xl border border-slate-700/80 bg-slate-950/70 px-4 py-3 text-slate-200 placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none transition"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <label className="text-sm font-semibold text-slate-300 uppercase tracking-wider">
+              Profile Photo
+            </label>
+            <div className="flex flex-col sm:flex-row gap-4 items-start">
+              <div className="flex-1">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhotoChange}
+                  className="w-full rounded-2xl border border-slate-700/80 bg-slate-950/70 px-4 py-3 text-slate-200 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-cyan-500/20 file:text-cyan-300 hover:file:bg-cyan-500/30 transition"
+                />
+                <p className="text-xs text-slate-500 mt-2">
+                  Upload a new photo to update the student's face recognition
+                  data.
+                </p>
+              </div>
+              {preview && (
+                <div className="bg-slate-900/70 rounded-2xl border border-slate-700/60 p-4">
+                  <img
+                    src={preview}
+                    alt="Preview"
+                    className="w-24 h-24 object-cover rounded-xl border border-slate-600"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-4 sm:flex-row pt-6 border-t border-slate-700/60">
+            <button
+              type="submit"
+              disabled={loading}
+              className={`flex-1 rounded-2xl py-3 px-6 font-semibold shadow-lg transition ${
+                loading
+                  ? "bg-slate-700/50 text-slate-500 cursor-not-allowed"
+                  : "bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-cyan-500/20 hover:opacity-95"
+              }`}
+            >
+              {loading ? (
+                <div className="flex items-center justify-center gap-2">
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{
+                      duration: 1,
+                      repeat: Infinity,
+                      ease: "linear",
+                    }}
+                    className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
+                  />
+                  Updating...
+                </div>
+              ) : (
+                "Update Student"
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/admin/students")}
+              className="flex-1 rounded-2xl border border-slate-700/80 bg-slate-900/80 py-3 px-6 text-slate-200 font-semibold hover:bg-slate-800 transition"
+            >
+              Cancel
+            </button>
+          </div>
+        </motion.form>
+      </div>
     </div>
   );
 }

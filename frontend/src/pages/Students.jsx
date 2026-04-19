@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import toast from "react-hot-toast";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL_TWO;
 
@@ -34,7 +35,6 @@ export default function StudentForm() {
   const [preview, setPreview] = useState(null);
   const [existingFaceEncoding, setExistingFaceEncoding] = useState(null);
   const [editingId, setEditingId] = useState(null);
-  const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
@@ -48,19 +48,19 @@ export default function StudentForm() {
   const fetchStudents = async () => {
     try {
       const res = await fetchWithAuth(
-        `${import.meta.env.VITE_API_BASE_URL_ONE}/students`
+        `${import.meta.env.VITE_API_BASE_URL_ONE}/students`,
       );
       const data = await res.json();
       setStudents(data);
     } catch (err) {
-      //.error(err);
+      toast.error("Failed to fetch students");
     }
   };
 
   const loadStudent = async (studentId) => {
     try {
       const res = await fetchWithAuth(
-        `${import.meta.env.VITE_API_BASE_URL_ONE}/students/${studentId}`
+        `${import.meta.env.VITE_API_BASE_URL_ONE}/students/${studentId}`,
       );
       const data = await res.json();
       setForm({
@@ -85,7 +85,7 @@ export default function StudentForm() {
 
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
-      //.error(err);
+      toast.error("Failed to load student");
     }
   };
 
@@ -104,10 +104,12 @@ export default function StudentForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!photo && !editingId) return setMessage("Please select a photo");
+    if (!photo && !editingId) {
+      toast.error("Please select a photo");
+      return;
+    }
 
     setLoading(true);
-    setMessage("");
 
     try {
       const payload = { ...form };
@@ -121,13 +123,13 @@ export default function StudentForm() {
         {
           method: editingId ? "PUT" : "POST",
           body: JSON.stringify(payload),
-        }
+        },
       );
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Error saving student");
 
-      setMessage(data.message || "Student saved successfully");
+      toast.success(data.message || "Student saved successfully");
       setForm({
         name: "",
         email: "",
@@ -145,7 +147,7 @@ export default function StudentForm() {
       setEditingId(null);
       fetchStudents();
     } catch (err) {
-      setMessage(err.message);
+      toast.error(err.message);
     } finally {
       setLoading(false);
     }
@@ -158,233 +160,297 @@ export default function StudentForm() {
         `${import.meta.env.VITE_API_BASE_URL_ONE}/students/${id}`,
         {
           method: "DELETE",
-        }
+        },
       );
-      setMessage("Student deleted successfully");
+      toast.success("Student deleted successfully");
       fetchStudents();
     } catch {
-      setMessage("Error deleting student");
+      toast.error("Error deleting student");
     }
   };
 
+  const handleCancel = () => {
+    setForm({
+      name: "",
+      email: "",
+      password: "",
+      fatherName: "",
+      enrollmentNumber: "",
+      semester: "",
+      admissionYear: "",
+      course: "",
+      phoneNumber: "",
+    });
+    setPhoto(null);
+    setPreview(null);
+    setExistingFaceEncoding(null);
+    setEditingId(null);
+  };
+
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-10">
-      <motion.h1
-        className="text-4xl font-bold text-indigo-700"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        {editingId ? "Edit Student" : "Register Student"}
-      </motion.h1>
-
-      <motion.form
-        onSubmit={handleSubmit}
-        className="bg-white shadow-lg rounded-xl p-6 grid grid-cols-1 md:grid-cols-12 gap-4"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5 }}
-      >
-        {/* Form Fields */}
-        {[
-          { name: "name", placeholder: "Name", type: "text", span: 6 },
-          { name: "email", placeholder: "Email", type: "email", span: 6 },
-          !editingId && {
-            name: "password",
-            placeholder: "Password",
-            type: "password",
-            span: 6,
-          },
-          {
-            name: "fatherName",
-            placeholder: "Father's Name",
-            type: "text",
-            span: 6,
-          },
-          {
-            name: "enrollmentNumber",
-            placeholder: "Enrollment Number",
-            type: "text",
-            span: 4,
-          },
-          {
-            name: "semester",
-            placeholder: "Semester",
-            type: "number",
-            span: 2,
-          },
-          {
-            name: "admissionYear",
-            placeholder: "Admission Year",
-            type: "number",
-            span: 2,
-          },
-          { name: "course", placeholder: "Course", type: "text", span: 4 },
-          {
-            name: "phoneNumber",
-            placeholder: "Phone Number",
-            type: "text",
-            span: 4,
-          },
-        ]
-          .filter(Boolean)
-          .map((field) => (
-            <div key={field.name} className={`md:col-span-${field.span}`}>
-              <input
-                type={field.type}
-                name={field.name}
-                value={form[field.name]}
-                onChange={handleChange}
-                placeholder={field.placeholder}
-                className="w-full p-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                required
-              />
-            </div>
-          ))}
-
-        {/* Photo Upload */}
-        <div className="md:col-span-4 flex flex-col gap-2">
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handlePhotoChange}
-            className="p-2 border rounded-md"
-          />
-          {preview && (
-            <img
-              src={preview}
-              alt="Preview"
-              className="w-32 h-32 object-cover border rounded-md mt-1"
-            />
-          )}
-        </div>
-
-        {/* Submit / Cancel Buttons */}
-        <div className="md:col-span-12 mt-2 flex gap-4">
-          <button
-            type="submit"
-            disabled={loading}
-            className={`flex-1 py-3 px-6 rounded-md font-semibold transition-colors ${
-              loading
-                ? "bg-gray-400 text-gray-100 cursor-not-allowed"
-                : "bg-indigo-600 text-white hover:bg-indigo-700"
-            }`}
-          >
-            {loading
-              ? editingId
-                ? "Updating..."
-                : "Registering..."
-              : editingId
-              ? "Update Student"
-              : "Register Student"}
-          </button>
-          {editingId && (
-            <button
-              type="button"
-              onClick={() => {
-                setForm({
-                  name: "",
-                  email: "",
-                  password: "",
-                  fatherName: "",
-                  enrollmentNumber: "",
-                  semester: "",
-                  admissionYear: "",
-                  course: "",
-                  phoneNumber: "",
-                });
-                setPhoto(null);
-                setPreview(null);
-                setExistingFaceEncoding(null);
-                setEditingId(null);
-                setMessage("");
-              }}
-              className="flex-1 py-3 px-6 rounded-md font-semibold bg-gray-500 text-white hover:bg-gray-600 transition"
-            >
-              Cancel
-            </button>
-          )}
-        </div>
-      </motion.form>
-
-      {message && (
-        <motion.p
-          className="mt-4 text-center font-medium"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.3 }}
-          style={{ color: message.includes("error") ? "#dc2626" : "#16a34a" }}
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 px-4 py-8">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-10 text-center"
         >
-          {message}
-        </motion.p>
-      )}
+          <h1 className="text-5xl font-black gradient-text mb-2">
+            👨‍🎓 {editingId ? "Edit Student" : "Register Student"}
+          </h1>
+          <p className="text-slate-400">
+            Manage student information and face recognition data
+          </p>
+        </motion.div>
 
-      {/* Student Table */}
-      <motion.div
-        className="mt-10 overflow-x-auto"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5 }}
-      >
-        <h2 className="text-2xl font-semibold text-indigo-700 mb-4">
-          Recently Added Students
-        </h2>
-        <table className="w-full text-left border-collapse shadow-lg rounded-md overflow-hidden">
-          <thead className="bg-indigo-600 text-white">
-            <tr>
-              {[
-                "Name",
-                "Email",
-                "Father's Name",
-                "Enrollment Number",
-                "Semester",
-                "Admission Year",
-                "Course",
-                "Phone Number",
-                "Actions",
-              ].map((th) => (
-                <th key={th} className="p-3">
-                  {th}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="bg-white">
-            {students
-              .slice(-5)
-              .reverse()
-              .map((s) => (
-                <tr
-                  key={s._id}
-                  className="border-b hover:bg-indigo-50 transition-colors"
+        {/* Form */}
+        <motion.form
+          onSubmit={handleSubmit}
+          className="glass border border-cyan-500/20 rounded-2xl p-8 mb-8"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <h2 className="text-2xl font-bold text-cyan-400 mb-6">
+            📝 Student Information
+          </h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+            {/* Form Fields */}
+            {[
+              { name: "name", placeholder: "Full Name", type: "text", span: 6 },
+              {
+                name: "email",
+                placeholder: "Email Address",
+                type: "email",
+                span: 6,
+              },
+              !editingId && {
+                name: "password",
+                placeholder: "Password",
+                type: "password",
+                span: 6,
+              },
+              {
+                name: "fatherName",
+                placeholder: "Father's Name",
+                type: "text",
+                span: 6,
+              },
+              {
+                name: "enrollmentNumber",
+                placeholder: "Enrollment Number",
+                type: "text",
+                span: 4,
+              },
+              {
+                name: "semester",
+                placeholder: "Semester",
+                type: "number",
+                span: 2,
+              },
+              {
+                name: "admissionYear",
+                placeholder: "Admission Year",
+                type: "number",
+                span: 2,
+              },
+              { name: "course", placeholder: "Course", type: "text", span: 4 },
+              {
+                name: "phoneNumber",
+                placeholder: "Phone Number",
+                type: "text",
+                span: 4,
+              },
+            ]
+              .filter(Boolean)
+              .map((field, index) => (
+                <motion.div
+                  key={field.name}
+                  className={`md:col-span-${field.span}`}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
                 >
-                  <td className="p-3">{s.name}</td>
-                  <td className="p-3">{s.email}</td>
-                  <td className="p-3">{s.fatherName}</td>
-                  <td className="p-3">{s.enrollmentNumber}</td>
-                  <td className="p-3">{s.semester}</td>
-                  <td className="p-3">{s.admissionYear}</td>
-                  <td className="p-3">{s.course}</td>
-                  <td className="p-3">{s.phoneNumber}</td>
-                  <td className="p-3 space-x-2">
-                    <button
-                      onClick={() => loadStudent(s._id)}
-                      className="bg-yellow-500 text-white px-3 py-1 rounded-md hover:bg-yellow-600 transition"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(s._id)}
-                      className="bg-red-600 text-white px-3 py-1 rounded-md hover:bg-red-700 transition"
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
+                  <label className="block text-slate-300 text-sm font-medium mb-2">
+                    {field.placeholder}
+                  </label>
+                  <input
+                    type={field.type}
+                    name={field.name}
+                    value={form[field.name]}
+                    onChange={handleChange}
+                    placeholder={field.placeholder}
+                    className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 text-white placeholder-slate-500 rounded-lg focus:outline-none focus:border-cyan-400 transition-colors"
+                    required
+                  />
+                </motion.div>
               ))}
-          </tbody>
-        </table>
-      </motion.div>
+
+            {/* Photo Upload */}
+            <motion.div
+              className="md:col-span-4"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.4 }}
+            >
+              <label className="block text-slate-300 text-sm font-medium mb-2">
+                📸 Student Photo
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoChange}
+                className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 text-white rounded-lg focus:outline-none focus:border-cyan-400 transition-colors file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-cyan-500 file:text-slate-950 hover:file:bg-cyan-400"
+              />
+              {preview && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="mt-4"
+                >
+                  <img
+                    src={preview}
+                    alt="Preview"
+                    className="w-32 h-32 object-cover border-2 border-cyan-500/30 rounded-xl"
+                  />
+                </motion.div>
+              )}
+            </motion.div>
+          </div>
+
+          {/* Action Buttons */}
+          <motion.div
+            className="flex gap-4 mt-8"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+          >
+            <motion.button
+              type="submit"
+              disabled={loading}
+              whileHover={{ scale: loading ? 1 : 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="flex-1 btn-glow py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg font-bold shadow-lg hover:from-green-600 hover:to-emerald-700 disabled:opacity-50 transition-all"
+            >
+              {loading
+                ? editingId
+                  ? "🔄 Updating..."
+                  : "📝 Registering..."
+                : editingId
+                  ? "💾 Update Student"
+                  : "➕ Register Student"}
+            </motion.button>
+            {editingId && (
+              <motion.button
+                type="button"
+                onClick={handleCancel}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="px-8 py-4 bg-slate-700 text-slate-300 rounded-lg font-bold hover:bg-slate-600 transition-all"
+              >
+                ❌ Cancel
+              </motion.button>
+            )}
+          </motion.div>
+        </motion.form>
+
+        {/* Student Table */}
+        <motion.div
+          className="glass border border-blue-500/20 rounded-2xl p-8"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <h2 className="text-2xl font-bold text-blue-400 mb-6">
+            📊 Recently Added Students
+          </h2>
+
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-slate-700">
+                  {[
+                    "👤 Name",
+                    "📧 Email",
+                    "👨‍👩‍👧 Father's Name",
+                    "🎓 Enrollment",
+                    "📚 Semester",
+                    "📅 Admission Year",
+                    "🏫 Course",
+                    "📞 Phone",
+                    "⚙️ Actions",
+                  ].map((th) => (
+                    <th
+                      key={th}
+                      className="text-left py-3 px-4 text-cyan-400 font-bold"
+                    >
+                      {th}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                <AnimatePresence>
+                  {students
+                    .slice(-5)
+                    .reverse()
+                    .map((s, index) => (
+                      <motion.tr
+                        key={s._id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ delay: index * 0.05 }}
+                        className="border-b border-slate-800 hover:bg-slate-800/30 transition-colors"
+                      >
+                        <td className="py-3 px-4 text-slate-200 font-medium">
+                          {s.name}
+                        </td>
+                        <td className="py-3 px-4 text-slate-400">{s.email}</td>
+                        <td className="py-3 px-4 text-slate-400">
+                          {s.fatherName}
+                        </td>
+                        <td className="py-3 px-4 text-slate-400">
+                          {s.enrollmentNumber}
+                        </td>
+                        <td className="py-3 px-4 text-slate-400">
+                          {s.semester}
+                        </td>
+                        <td className="py-3 px-4 text-slate-400">
+                          {s.admissionYear}
+                        </td>
+                        <td className="py-3 px-4 text-slate-400">{s.course}</td>
+                        <td className="py-3 px-4 text-slate-400">
+                          {s.phoneNumber}
+                        </td>
+                        <td className="py-3 px-4 space-x-2">
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => loadStudent(s._id)}
+                            className="px-3 py-1 bg-yellow-500/20 text-yellow-400 rounded-lg hover:bg-yellow-500/30 font-medium transition-colors"
+                          >
+                            ✏️ Edit
+                          </motion.button>
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => handleDelete(s._id)}
+                            className="px-3 py-1 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 font-medium transition-colors"
+                          >
+                            🗑️ Delete
+                          </motion.button>
+                        </td>
+                      </motion.tr>
+                    ))}
+                </AnimatePresence>
+              </tbody>
+            </table>
+          </div>
+        </motion.div>
+      </div>
     </div>
   );
 }

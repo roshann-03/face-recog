@@ -27,7 +27,7 @@ db = client["face-recog"]
 students_collection = db["users"]
 attendance_collection = db["attendance"]
 
-SECRET_KEY = "5a1d13c682e3208a793a4daa77a7e7646dab406d3aa4a9aa2cf5f8e2b7d36321"
+JWT_SECRET_KEY = "5a1d13c682e3208a793a4daa77a7e7646dab406d3aa4a9aa2cf5f8e2b7d36321"
 
 # Auth decorator
 def token_required(f):
@@ -38,7 +38,7 @@ def token_required(f):
             return jsonify({"error": "Token missing"}), 403
         try:
             token = token.replace("Bearer ", "")
-            decoded = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+            decoded = jwt.decode(token, JWT_SECRET_KEY, algorithms=["HS256"])
             user = students_collection.find_one({"_id": ObjectId(decoded["id"])})
             if not user:
                 return jsonify({"error": "User not found"}), 403
@@ -227,7 +227,7 @@ def login():
             return jsonify({"error": "Invalid credentials"}), 401
 
         if bcrypt.checkpw(password.encode(), user["password"]):
-            token = jwt.encode({"id": str(user["_id"]), "exp": datetime.now(timezone.utc) ++ timedelta(hours=2)}, SECRET_KEY, algorithm="HS256")
+            token = jwt.encode({"id": str(user["_id"]), "exp": datetime.now(timezone.utc) ++ timedelta(hours=2)}, JWT_SECRET_KEY, algorithm="HS256")
             return jsonify({"token": token})
         else:
             return jsonify({"error": "Invalid credentials"}), 401

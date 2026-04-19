@@ -9,16 +9,17 @@ const startServer = async () => {
   try {
     attempts++;
     await connectDB();
+    console.log("✅ MongoDB Connected");
     app.listen(PORT, () => {
-      //.log(`Server running on http://localhost:${PORT}`);
+      console.log(`Server running on http://localhost:${PORT}`);
     });
   } catch (err) {
-    //.error(`Server start failed (attempt ${attempts}):`, err.message);
+    console.error(`Server start failed (attempt ${attempts}):`, err.message);
     if (attempts < MAX_RETRIES) {
-      //.log("Retrying in 5 seconds...");
+      console.log("Retrying in 5 seconds...");
       setTimeout(startServer, 5000);
     } else {
-      //.error("Max retries reached. Exiting with status 1.");
+      console.error("Max retries reached. Exiting with status 1.");
       process.exit(1);
     }
   }

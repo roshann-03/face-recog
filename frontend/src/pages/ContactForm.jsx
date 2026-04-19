@@ -1,6 +1,7 @@
 import { useState } from "react";
-
+import { motion } from "framer-motion";
 import { API_ONE } from "../api/api";
+import toast from "react-hot-toast";
 
 export default function ContactForm() {
   const [form, setForm] = useState({
@@ -10,30 +11,17 @@ export default function ContactForm() {
     semester: "",
     message: "",
   });
-  const [status, setStatus] = useState("");
-  const [blockButton, setBlockButton] = useState(false);
-  const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setStatus("Submitting...");
-    setBlockButton(true);
+    setLoading(true);
+
     try {
-      const res = await fetch(`${API_ONE}/contact`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-
-      const data = await res.json();
-      if (!res.ok)
-        throw new Error(data.message?.message || "Error submitting query");
-
-      setError(false);
-      setStatus("Your query has been submitted!");
+      const { data } = await API_ONE.post("/contact", form);
       setForm({
         name: "",
         enrollmentNumber: "",
@@ -41,85 +29,90 @@ export default function ContactForm() {
         semester: "",
         message: "",
       });
+      toast.success(data.message || "Query submitted successfully");
     } catch (err) {
-      setStatus(err.message);
-      setError(true);
+      toast.error(err.response?.data?.message || "Error submitting query");
     } finally {
-      setBlockButton(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-xl mx-auto p-6 bg-white shadow-lg rounded-xl mt-10">
-      <h2 className="text-2xl font-bold text-indigo-700 mb-6 text-center">
-        Contact / Query Form
-      </h2>
-      <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4">
-        <input
-          name="name"
-          value={form.name}
-          onChange={handleChange}
-          placeholder="Name"
-          className="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
-          required
-        />
-        <input
-          name="enrollmentNumber"
-          value={form.enrollmentNumber}
-          onChange={handleChange}
-          placeholder="Enrollment No."
-          className="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
-          required
-        />
-        <input
-          name="course"
-          value={form.course}
-          onChange={handleChange}
-          placeholder="Course"
-          className="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
-          required
-        />
-        <input
-          type="number"
-          name="semester"
-          value={form.semester}
-          onChange={handleChange}
-          placeholder="Semester"
-          className="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
-          required
-        />
-        <textarea
-          name="message"
-          value={form.message}
-          onChange={handleChange}
-          placeholder="Write your query..."
-          className="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition resize-none"
-          rows="4"
-          required
-        />
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center px-4 py-10">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="glass border border-cyan-500/20 max-w-3xl w-full p-8 rounded-3xl shadow-2xl"
+      >
+        <div className="mb-6 text-center">
+          <p className="text-sm uppercase tracking-[0.3em] text-cyan-300 mb-2">
+            Contact Support
+          </p>
+          <h2 className="text-3xl font-bold text-white">Student Query Form</h2>
+          <p className="text-slate-400 mt-2">
+            Send a message to support and we’ll get back to you shortly.
+          </p>
+        </div>
 
-        <button
-          type="submit"
-          disabled={blockButton}
-          className={`col-span-1 w-full py-2 rounded-lg text-white font-semibold transition ${
-            blockButton
-              ? "bg-indigo-400 cursor-not-allowed"
-              : "bg-indigo-600 hover:bg-indigo-700"
-          }`}
-        >
-          {blockButton ? "Submitting..." : "Submit"}
-        </button>
-      </form>
+        <form onSubmit={handleSubmit} className="grid gap-4">
+          <input
+            name="name"
+            value={form.name}
+            onChange={handleChange}
+            placeholder="Full Name"
+            className="rounded-2xl border border-slate-700/80 bg-slate-950/70 px-4 py-3 text-slate-100 placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none"
+            required
+          />
+          <input
+            name="enrollmentNumber"
+            value={form.enrollmentNumber}
+            onChange={handleChange}
+            placeholder="Enrollment Number"
+            className="rounded-2xl border border-slate-700/80 bg-slate-950/70 px-4 py-3 text-slate-100 placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none"
+            required
+          />
+          <div className="grid gap-4 md:grid-cols-2">
+            <input
+              name="course"
+              value={form.course}
+              onChange={handleChange}
+              placeholder="Course"
+              className="rounded-2xl border border-slate-700/80 bg-slate-950/70 px-4 py-3 text-slate-100 placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none"
+              required
+            />
+            <input
+              type="number"
+              name="semester"
+              value={form.semester}
+              onChange={handleChange}
+              placeholder="Semester"
+              className="rounded-2xl border border-slate-700/80 bg-slate-950/70 px-4 py-3 text-slate-100 placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none"
+              required
+            />
+          </div>
+          <textarea
+            name="message"
+            value={form.message}
+            onChange={handleChange}
+            placeholder="Write your query..."
+            className="rounded-2xl border border-slate-700/80 bg-slate-950/70 px-4 py-3 text-slate-100 placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none resize-none min-h-[140px]"
+            rows="5"
+            required
+          />
 
-      {status && (
-        <p
-          className={`mt-4 text-center text-sm font-medium ${
-            error ? "text-red-600" : "text-green-600"
-          } transition`}
-        >
-          {status}
-        </p>
-      )}
+          <button
+            type="submit"
+            disabled={loading}
+            className={`w-full rounded-2xl px-6 py-4 text-sm font-semibold text-slate-950 transition ${
+              loading
+                ? "bg-slate-700 cursor-not-allowed"
+                : "bg-cyan-500 hover:bg-cyan-400"
+            }`}
+          >
+            {loading ? "Submitting..." : "Send Query"}
+          </button>
+        </form>
+      </motion.div>
     </div>
   );
 }
